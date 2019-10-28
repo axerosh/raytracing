@@ -14,16 +14,18 @@ defines = -DGL_GLEXT_PROTOTYPES
 sources = $(src_files) $(lib_files) $(glut_files)
 libraries = -lXt -lX11 -lGL -lm
 
-.PHONY: run build force-build clean
+.PHONY: build_and_run build force-build run clean
 
-run: build
-	./$(out_file)
+build_and_run: build run
 
 build: $(sources)
 	make force-build
 
 force-build: $(out_dir)
 	g++ $(cflags) -o $(out_file) $(includes) $(defines) $(sources) $(libraries)
+
+run:
+	./$(out_file)
 
 clean:
 	rm -r $(out_dir)

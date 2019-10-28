@@ -1,164 +1,129 @@
-// Phong shaded cube
-// (No perspective)
-// gcc phongcube.c ../../common/*.c ../../common/Linux/*.c -lGL -o phongcube -I../../common -I../../common/Linux -DGL_GLEXT_PROTOTYPES  -lXt -lX11 -lm
 
-#ifdef __APPLE__
-	#include <OpenGL/gl3.h>
-	// linking hint for Lightweight IDE
-	//uses framework Cocoa
-#endif
-#include "MicroGlut.h"
+#include "camera.hpp"
+#include "gl-import.hpp"
+#include "shader-utils.hpp"
+#include "voxel-generator.hpp"
+
 #include "GL_utilities.h"
+#include "loadobj.h"
 #include "VectorUtils3.h"
 
-#define W 1200
-#define H 1200
 
-// Globals
-// Data would normally be read from files
-GLfloat vertices[8][3] = {{-0.5,-0.5,-0.5},
-                          { 0.5,-0.5,-0.5},
-                          { 0.5, 0.5,-0.5},
-                          {-0.5, 0.5,-0.5},
-                          {-0.5,-0.5, 0.5},
-                          { 0.5,-0.5, 0.5},
-                          { 0.5, 0.5, 0.5},
-                          {-0.5, 0.5, 0.5}};
-GLfloat normals[8][3] = {{-0.58,-0.58,-0.58},
-                         { 0.58,-0.58,-0.58},
-                         { 0.58, 0.58,-0.58},
-                         {-0.58, 0.58,-0.58},
-                         {-0.58,-0.58, 0.58},
-                         { 0.58,-0.58, 0.58},
-                         { 0.58, 0.58, 0.58},
-                         {-0.58, 0.58, 0.58}};
-GLubyte cube_indices[36] = { 0,3,2, 0,2,1, 
-                             2,3,7, 2,7,6,
-                             0,4,7, 0,7,3,
-                             1,2,6, 1,6,5,
-                             4,5,6, 4,6,7,
-                             0,1,5, 0,5,4};
+//----------------------Constants----------------------------------------------
 
-// NEW
-GLfloat rot_matrix[] = { 0.7f, -0.7f, 0.0f, 0.0f,
-                         0.7f,  0.7f, 0.0f, 0.0f,
-                         0.0f,  0.0f, 1.0f, 0.0f,
-                         0.0f,  0.0f, 0.0f, 1.0f };
+// initial width and heights
+#define W 512
+#define H 512
 
-#define FOV 90
-#define NEAR 1
-#define FAR 30
+#define CLEAR_COLOR vec3(0.1, 0.1, 0.3)
 
-mat4 proj_matrix = perspective(FOV, (GLfloat) W / (GLfloat) H, NEAR, FAR);
 
-unsigned int vao;
-GLuint shader;
+//----------------------Square Model-------------------------------------------
 
-float last_time;
+GLfloat square_vertices[] = {-1.0,-1.0, 0.0,
+                             -1.0, 1.0, 0.0,
+                              1.0, 1.0, 0.0,
+                              1.0,-1.0, 0.0};
+GLfloat square_tex_coords[] = {0.0, 0.0,
+                               0.0, 1.0,
+                               1.0, 1.0,
+                               1.0, 0.0};
+GLuint square_indices[] = {0, 1, 2, 0, 2, 3};
+Model* square_model;
 
-float getElapsedTime()
+
+//----------------------Globals------------------------------------------------
+
+GLuint shader = 0;
+Camera camera;
+
+
+//----------------------Implementation-----------------------------------------
+
+void onTimer(int value)
 {
-	return glutGet(GLUT_ELAPSED_TIME) * 0.001;
+	glutPostRedisplay();
+	glutTimerFunc(5, &onTimer, value);
 }
 
-void init()
+void init(void)
 {
-	last_time = getElapsedTime();
-
-	// three vertex buffer objects, used for uploading the data
-	unsigned int vbo, ibo, nbo;
+	dumpInfo();  // shader info
 
 	// GL inits
-	glClearColor(0.2,0.2,0.5,0);
+	glClearColor(CLEAR_COLOR.x, CLEAR_COLOR.y, CLEAR_COLOR.z, 0);
+	glClearDepth(1.0);
 	glEnable(GL_DEPTH_TEST);
-	glEnable(GL_CULL_FACE);
+	glDisable(GL_CULL_FACE);
 	printError("GL inits");
 
-	// Load and compile shader
-	shader = loadShaders("shaders/phong.vert", "shaders/phong.frag");
+	// Load and compile shaders
+	shader = loadShaders("shaders/raytracing.vert", "shaders/raytracing.frag");
 	glUseProgram(shader);
 	printError("init shader");
 
-	// Upload geometry to the GPU:
+	initVoxels(shader);
+	printError("init voxels");
 
-	// Allocate and activate Vertex Array Object
-	glGenVertexArrays(1, &vao);
-	glBindVertexArray(vao);
-	// Allocate Vertex Buffer Objects
-	glGenBuffers(1, &vbo);
-	glGenBuffers(1, &ibo);
-	glGenBuffers(1, &nbo);
+	// Load model
+	square_model = LoadDataToModel(
+		square_vertices, NULL, square_tex_coords, NULL,
+		square_indices, 4, 6);
+	printError("init model");
 
-	// VBO for vertex data
-	glBindBuffer(GL_ARRAY_BUFFER, vbo);
-	glBufferData(GL_ARRAY_BUFFER, 8*3*sizeof(GLfloat), vertices, GL_STATIC_DRAW);
-	glVertexAttribPointer(glGetAttribLocation(shader, "in_pos"), 3, GL_FLOAT, GL_FALSE, 0, 0);
-	glEnableVertexAttribArray(glGetAttribLocation(shader, "in_pos"));
-	printError("init vertices");
+	camera = Camera(shader);
+	printError("init camera");
 
-	// VBO for normal/color data
-	glBindBuffer(GL_ARRAY_BUFFER, nbo);
-	glBufferData(GL_ARRAY_BUFFER, 8*3*sizeof(GLfloat), normals, GL_STATIC_DRAW);
-	glVertexAttribPointer(glGetAttribLocation(shader, "in_normal"), 3, GL_FLOAT, GL_FALSE, 0, 0);
-	glEnableVertexAttribArray(glGetAttribLocation(shader, "in_normal"));
-	printError("init normals");
-
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ibo);
-	glBufferData(GL_ELEMENT_ARRAY_BUFFER, 36*sizeof(GLubyte), cube_indices, GL_STATIC_DRAW);
-	printError("init index");
-
-	// End of upload of geometry
-
-	glUniformMatrix4fv(glGetUniformLocation(shader, "proj_matrix"), 1, GL_TRUE, proj_matrix.m);
-
-	printError("init arrays");
+	glutTimerFunc(5, &onTimer, 0);
 }
-
-GLfloat a = 0.0;
 
 void display()
 {
-	float current_time = getElapsedTime();
-	float delta_t = current_time - last_time;
-	last_time = current_time;
-
-	// clear the screen
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-	mat4 m1, m2, m, tr;
-
-	a += delta_t;
-	m1 = Rz(M_PI/5);
-	m2 = Ry(a);
-	m = Mult(m2,m1);
-	tr = T(0, 0, -2.0);
-	m = Mult(tr, m); // tr * ry * rz
-	glUniformMatrix4fv(glGetUniformLocation(shader, "mv_matrix"), 1, GL_TRUE, m.m);
-
-	glBindVertexArray(vao); // Select VAO
-	glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_BYTE, NULL); // draw object
-
-	printError("display");
-
+	camera.update();
+	DrawModel(square_model, shader, "in_pos", NULL, NULL);
 	glutSwapBuffers();
 }
 
 void reshape(GLsizei w, GLsizei h)
 {
 	glViewport(0, 0, w, h);
-	proj_matrix = perspective(FOV, (GLfloat) w / (GLfloat) h, NEAR, FAR);
-	glUniformMatrix4fv(glGetUniformLocation(shader, "proj_matrix"), 1, GL_TRUE, proj_matrix.m);
+	GLfloat screen_ratio = (GLfloat) w / (GLfloat) h;
+	glUniform1f(uniformLoc(shader, "screen_ratio"), screen_ratio);
 }
+
+void idle()
+{
+	glutPostRedisplay();
+}
+
+void mouse(int button, int state, int x, int y) {
+	camera.mouseClicked(button, state, x, y);
+}
+
+void motion(int x, int y) {
+	camera.mouseDragged(x, y);
+}
+
+
+//-----------------------------main--------------------------------------------
 
 int main(int argc, char *argv[])
 {
 	glutInit(&argc, argv);
-	glutInitContextVersion(4, 6);
+
+	glutInitDisplayMode(GLUT_RGBA | GLUT_DEPTH | GLUT_DOUBLE);
 	glutInitWindowSize(W, H);
+
+	glutInitContextVersion(4, 6);
 	glutCreateWindow ("Ray Tracing");
-	glutRepeatingTimerFunc(20);
 	glutDisplayFunc(display);
 	glutReshapeFunc(reshape);
+	glutIdleFunc(idle);
+	glutMouseFunc(mouse);
+	glutMotionFunc(motion);
+
 	init();
 	glutMainLoop();
+	exit(0);
 }

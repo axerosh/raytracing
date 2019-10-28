@@ -42,6 +42,13 @@
 		#endif
 	} vec3, *vec3Ptr;
 
+	const vec3 RIGHT   = vec3( 1, 0, 0);
+	const vec3 LEFT    = vec3(-1, 0, 0);
+	const vec3 UP      = vec3( 0, 1, 0);
+	const vec3 DOWN    = vec3( 0,-1, 0);
+	const vec3 BACK    = vec3( 0, 0, 1);
+	const vec3 FORWARD = vec3( 0, 0,-1);
+
 	// vec4 is not as useful. Can be a color with alpha, or a quaternion, but IMHO you
 	// rarely need homogenous coordinate vectors on the CPU.
 	typedef struct vec4
