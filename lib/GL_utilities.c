@@ -18,8 +18,10 @@
 #include <stdio.h>
 #include <stddef.h>
 #include <string.h>
+#include <fstream>
 
 #include "GL_utilities.h"
+#include "Shadinclude.hpp"
 
 // Shader loader
 
@@ -51,6 +53,13 @@ char* readFile(char *file)
 	buf[length] = 0; /* Null terminator */
 
 	return buf; /* Return the buffer */
+}
+
+void writeFile(std::string text, std::string file, std::string extension) {
+	std::ofstream ofs;
+	ofs.open(file + extension);
+	ofs << text;
+	ofs.close();
 }
 
 // Infolog: Show result of shader compilation
@@ -167,31 +176,50 @@ GLuint loadShadersGT(const char *vertFileName, const char *fragFileName, const c
 						const char *tcFileName, const char *teFileName)
 // With tesselation shader support
 {
-	char *vs, *fs, *gs, *tcs, *tes;
 	GLuint p = 0;
 
-	vs = readFile((char *)vertFileName);
-	fs = readFile((char *)fragFileName);
-	gs = readFile((char *)geomFileName);
-	tcs = readFile((char *)tcFileName);
-	tes = readFile((char *)teFileName);
-	if (vs==NULL)
+	std::string vs  = Shadinclude::load(vertFileName);
+	std::string fs  = Shadinclude::load(fragFileName);
+	std::string gs  = geomFileName != NULL ? Shadinclude::load(geomFileName) : "";
+	std::string tcs = geomFileName != NULL ? Shadinclude::load(  tcFileName) : "";
+	std::string tes = geomFileName != NULL ? Shadinclude::load(  teFileName) : "";
+
+	const std::string extension = ".out";
+
+	if (vs.empty())
 		fprintf(stderr, "Failed to read %s from disk.\n", vertFileName);
-	if (fs==NULL)
+	else
+		writeFile(vs, vertFileName, extension);
+
+	if (fs.empty())
 		fprintf(stderr, "Failed to read %s from disk.\n", fragFileName);
-	if ((gs==NULL) && (geomFileName != NULL))
-		fprintf(stderr, "Failed to read %s from disk.\n", geomFileName);
-	if ((tcs==NULL) && (tcFileName != NULL))
-		fprintf(stderr, "Failed to read %s from disk.\n", tcFileName);
-	if ((tes==NULL) && (teFileName != NULL))
-		fprintf(stderr, "Failed to read %s from disk.\n", teFileName);
-	if ((vs!=NULL)&&(fs!=NULL))
-		p = compileShaders(vs, fs, gs, tcs, tes, vertFileName, fragFileName, geomFileName, tcFileName, teFileName);
-	if (vs != NULL) free(vs);
-	if (fs != NULL) free(fs);
-	if (gs != NULL) free(gs);
-	if (tcs != NULL) free(tcs);
-	if (tes != NULL) free(tes);
+	else
+		writeFile(fs, fragFileName, extension);
+
+	if (gs.empty()) {
+		if(geomFileName != NULL)
+			fprintf(stderr, "Failed to read %s from disk.\n", geomFileName);
+	} else
+		writeFile(gs, geomFileName, extension);
+
+	if (tcs.empty()) {
+		if (tcFileName != NULL)
+			fprintf(stderr, "Failed to read %s from disk.\n", tcFileName);
+	} else
+		writeFile(tcs, tcFileName, extension);
+
+	if (tes.empty()) {
+		if(teFileName != NULL)
+			fprintf(stderr, "Failed to read %s from disk.\n", teFileName);
+	} else
+		writeFile(tes, teFileName, extension);
+
+	if (!vs.empty() && !fs.empty())
+		p = compileShaders(vs.c_str(), fs.c_str(),
+			 gs.empty() ? NULL : gs.c_str(),
+			tcs.empty() ? NULL : tcs.c_str(),
+			tes.empty() ? NULL : tes.c_str(),
+			vertFileName, fragFileName, geomFileName, tcFileName, teFileName);
 	return p;
 }
 
