@@ -30,21 +30,35 @@ void printVoxels(GLubyte grid[VOXEL_COUNT][VOXEL_COUNT][VOXEL_COUNT]) {
 	std::cout << "}" << std::endl;
 }
 
+bool isCenter(int x) {
+	return x >= int(0.5 * VOXEL_COUNT - 0.5) && x <= VOXEL_COUNT / 2;
+}
+
+bool isCenter(int x, int y) {
+	return isCenter(x) && isCenter(y);
+}
+
+bool isCenter(int x, int y, int z) {
+	return isCenter(x) && isCenter(y) && isCenter(z);
+}
+
+bool isWall(int x, int y, int z) {
+	return x == 0 || y == 0 || z == 0 ||
+		/*x == VOXEL_COUNT - 1 ||*/ y == VOXEL_COUNT - 1 || z == VOXEL_COUNT - 1;
+}
+
 void initVoxels(GLuint shader) {
 	// Generate voxels
 	GLubyte grid[VOXEL_COUNT][VOXEL_COUNT][VOXEL_COUNT] = {};
 
-	static const int MAX_SUM = 3 * (VOXEL_COUNT - 1);
+	static const float MAX_SUM_INV = 1.0 / (3 * (VOXEL_COUNT - 1));
 
 	for (int x = 0; x < VOXEL_COUNT; ++x) {
 		for (int y = 0; y < VOXEL_COUNT; ++y) {
 			for (int z = 0; z < VOXEL_COUNT; ++z) {
-				if (x == 0 || y == 0 || z == 0 || y == VOXEL_COUNT - 1 || z == VOXEL_COUNT - 1
-					|| (x >= int(0.5 * VOXEL_COUNT - 0.5) && x <= VOXEL_COUNT / 2
-					&& y >= int(0.5 * VOXEL_COUNT - 0.5) && y <= VOXEL_COUNT / 2
-					&& z >= int(0.5 * VOXEL_COUNT - 0.5) && z <= VOXEL_COUNT / 2))
-				{
-					grid[x][y][z] = 1 + 254 * (x + y + z) / MAX_SUM;
+				if (isCenter(x, y, z) ||
+				   (isWall(x, y, z) && !(isCenter(x, y) || isCenter(x, z) || isCenter(y, z)))) {
+					grid[x][y][z] = 1 + 254 * (x + y + z) * MAX_SUM_INV;
 				} else {
 					grid[x][y][z] = 0;
 				}
@@ -56,7 +70,7 @@ void initVoxels(GLuint shader) {
 
 	// Init 3D texture
 	GLuint voxel_tex;
-glUseProgram(shader);
+	glUseProgram(shader);
 	glGenTextures(1, &voxel_tex);
 	glBindTexture(GL_TEXTURE_3D, voxel_tex);
 	glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
