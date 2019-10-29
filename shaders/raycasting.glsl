@@ -15,7 +15,6 @@ struct VoxelRaycastHit {
 	ivec3 voxel_coords;
 	vec3  world_pos;
 	float depth;
-	int   voxel_steps;
 };
 
 /**
@@ -40,21 +39,22 @@ float rayDistanceToAABB(const Ray r, const AABB aabb)
 /**
  * Sets information about the first set voxel, hit by the specified ray,
  * to the hit parameter.
+ * Stops before the specified maximum depth.
  *
  * Returns true if there was a hit or false otherwise.
  */
-bool voxelRaycast(const Ray r, out VoxelRaycastHit hit)
+bool raymarchVoxels(const Ray r, out VoxelRaycastHit hit, float max_depth = 1e20)
 {
 // References:
 //	https://theshoemaker.de/2016/02/ray-casting-in-2d-grids/
 //	http://www.cse.yorku.ca/~amana/research/grid.pdf
 
-	ivec3 voxel_coords;    // Voxel coordinates
-	ivec3 voxel_step;      // Voxel coordinate step, per axis
-	float depth;           // Traversed distance along the ray
-	vec3  d_depth;         // Change in depth, per axis, if traversing along said axis
-	vec3  dd_depth;        // Change in d_depth, per axis, if traversing along said axis
-	int   voxel_steps = 0; // Number of steps taken through the voxel space
+	ivec3 voxel_coords; // Voxel coordinates
+	ivec3 voxel_step;   // Change in voxel coordinates, per axis, if traversing along said axis
+
+	float depth = 0;    // Traversed distance along the ray, in voxel space
+	vec3  next_depth;   // New depth, per axis, if traversing along said axis
+	vec3  depth_step;   // Change in depth, per axis, if traversing along said axis
 
 	// Start at intersection with voxel space AABB
 	AABB aabb = AABB(to_world(VOXEL_WORLD_SKIN), to_world(vec3(voxel_count)) - VOXEL_WORLD_SKIN);
@@ -72,47 +72,45 @@ bool voxelRaycast(const Ray r, out VoxelRaycastHit hit)
 	vec3 init_offset = vec3(r.dir.x >= 0.0 ? 1.0 : 0.0,
 	                        r.dir.y >= 0.0 ? 1.0 : 0.0,
 	                        r.dir.z >= 0.0 ? 1.0 : 0.0);
-	d_depth = (to_world(voxel_coords + init_offset) - r.o) * r.dir_inv;
-	dd_depth = to_world(voxel_step) * r.dir_inv;
+	next_depth = (to_world(voxel_coords + init_offset) - r.o) * r.dir_inv;
+	depth_step = to_world(voxel_step) * r.dir_inv;
 
 	// Traverse voxel space
 	AABBi voxel_bounds = AABBi(ivec3(0), voxel_count - ivec3(1));
 	if (lengthSqrd(r.dir) > 0.0) {
-		while (isInAABBi(voxel_coords, voxel_bounds)) {
+		while (depth < max_depth && isInAABBi(voxel_coords, voxel_bounds)) {
 
 			// Check voxel hit
 			vec4 voxel_value = texture(voxel_tex, vec3(voxel_coords) / voxel_count);
 			if (voxel_value.x > 0.0) {
 				vec3 world_pos = r.o + depth * r.dir;
-				hit = VoxelRaycastHit(voxel_value, voxel_coords, world_pos, depth, voxel_steps);
+				hit = VoxelRaycastHit(voxel_value, voxel_coords, world_pos, depth);
 				return true;
 			}
 
 			// Traverse to next voxel
-			if (d_depth.x <= d_depth.y) {
-				if (d_depth.x <= d_depth.z) {
+			if (next_depth.x <= next_depth.y) {
+				if (next_depth.x <= next_depth.z) {
+					depth = next_depth.x;
 					voxel_coords.x += voxel_step.x;
-					depth += d_depth.x;
-					d_depth.x += dd_depth.x;
+					next_depth.x += depth_step.x;
 				}
 				else {
+					depth = next_depth.z;
 					voxel_coords.z += voxel_step.z;
-					depth += d_depth.z;
-					d_depth.z += dd_depth.z;
+					next_depth.z += depth_step.z;
 				}
 			}
-			else if (d_depth.y <= d_depth.z) {
+			else if (next_depth.y <= next_depth.z) {
+				depth = next_depth.y;
 				voxel_coords.y += voxel_step.y;
-				depth += d_depth.y;
-				d_depth.y += dd_depth.y;
+				next_depth.y += depth_step.y;
 			}
 			else {
+				depth = next_depth.z;
 				voxel_coords.z += voxel_step.z;
-				depth += d_depth.z;
-				d_depth.z += dd_depth.z;
+				next_depth.z += depth_step.z;
 			}
-
-			++voxel_steps;
 		}
 	}
 

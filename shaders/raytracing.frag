@@ -22,8 +22,8 @@ void main()
 	Ray r = Ray(ray_origin, ray_dir, vec3(1.0) / ray_dir);
 
 	VoxelRaycastHit hit;
-	if (voxelRaycast(r, hit)) {
-		out_color = vec4(vec3(hit.voxel_value.x) * vec3(0.5, 1.0, 1.0), 1.0);
+	if (raymarchVoxels(r, hit)) {
+		out_color = vec4(/* vec3(hit.voxel_value.x) * */ vec3(0.5, 1.0, 1.0) * vec3(10.0 / hit.depth), 1.0);
 	}
 	else {
 		out_color = BACKGROUND_COLOR;
