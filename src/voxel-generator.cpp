@@ -44,7 +44,7 @@ bool isCenter(int x, int y, int z) {
 
 bool isWall(int x, int y, int z) {
 	return x == 0 || y == 0 || z == 0 ||
-		/*x == VOXEL_COUNT - 1 ||*/ y == VOXEL_COUNT - 1 || z == VOXEL_COUNT - 1;
+		x == VOXEL_COUNT - 1 || y == VOXEL_COUNT - 1 /* || z == VOXEL_COUNT - 1 */;
 }
 
 void initVoxels(GLuint shader) {
@@ -58,9 +58,9 @@ void initVoxels(GLuint shader) {
 			for (int z = 0; z < VOXEL_COUNT; ++z) {
 				if (isCenter(x, y, z) ||
 				   (isWall(x, y, z) && !(isCenter(x, y) || isCenter(x, z) || isCenter(y, z)))) {
-					grid[x][y][z] = 1 + 254 * (x + y + z) * MAX_SUM_INV;
+					grid[z][y][x] = 1 + 254 * (x + y + z) * MAX_SUM_INV;
 				} else {
-					grid[x][y][z] = 0;
+					grid[z][y][x] = 0;
 				}
 			}
 		}
