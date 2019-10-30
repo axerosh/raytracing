@@ -13,10 +13,12 @@ in vec3 ray_origin;
 
 out vec4 out_color;
 
-
-#define BACKGROUND_COLOR vec4(1.0, 0.0, 1.0, 1.0)
+#define AMBIENT_LIGHT vec3(0.05, 0.075, 0.1)
+#define BACKGROUND_COLOR vec4(AMBIENT_LIGHT, 1.0)
 #define LIGHT_RAY_OFFSET 0.001
 
+#define DIFFUSIVITY 0.6
+#define SPECULARITY 0.5
 
 struct PointLight { vec3 pos; vec3 intensity; };
 
@@ -41,17 +43,32 @@ void main()
 
 	RaymarchVoxelHit hit;
 	if (raymarchVoxels(r, hit)) {
-		vec3 light = vec3(0.0);
+
+		vec3 diffuse_light = vec3(0.0);
+		vec3 specular_light = vec3(0.0);
+
 		for (int i = 0; i < LIGHT_COUNT; ++i) {
 			RaymarchVoxelHit occluderHit;
 			vec3 light_offset = lights[i].pos - hit.world_pos;
 			vec3 to_light = normalize(light_offset);
 			Ray light_r = Ray(hit.world_pos + LIGHT_RAY_OFFSET * hit.normal, to_light, vec3(1.0) / to_light);
 			if (!raymarchVoxels(light_r, occluderHit, length(light_offset))) {
-				light += lights[i].intensity / lengthSqrd(light_offset);
+
+				// Brightness
+				vec3 brightness = lights[i].intensity / lengthSqrd(light_offset);
+
+				// Diffuse
+				diffuse_light += max(vec3(0.0), brightness * dot(hit.normal, to_light));
+
+				// Specular
+				float specular = dot(reflect(to_light, hit.normal), ray_dir);
+				if (specular > 0.0)
+					specular = 1.0 * pow(specular, 150.0);
+				specular_light += max(vec3(0.0), brightness * specular);
 			}
 		}
-		light = max(vec3(0.0), light);
+
+		vec3 light = AMBIENT_LIGHT + DIFFUSIVITY *  diffuse_light + SPECULARITY * specular_light;
 		out_color = vec4(light /* * vec3(hit.voxel_value.x) */, 1.0);
 	}
 	else {
