@@ -51,14 +51,14 @@ void initVoxels(GLuint shader) {
 	// Generate voxels
 	GLubyte grid[VOXEL_COUNT][VOXEL_COUNT][VOXEL_COUNT] = {};
 
-	static const float MAX_SUM_INV = 1.0 / (3 * (VOXEL_COUNT - 1));
+	// static const float MAX_SUM_INV = 1.0 / (3 * (VOXEL_COUNT - 1));
 
 	for (int x = 0; x < VOXEL_COUNT; ++x) {
 		for (int y = 0; y < VOXEL_COUNT; ++y) {
 			for (int z = 0; z < VOXEL_COUNT; ++z) {
 				if (isCenter(x, y, z) ||
 				   (isWall(x, y, z) && !(isCenter(x, y) || isCenter(x, z) || isCenter(y, z)))) {
-					grid[z][y][x] = 1 + 254 * (x + y + z) * MAX_SUM_INV;
+					grid[z][y][x] = 255; //1 + 254 * (x + y + z) * MAX_SUM_INV;
 				} else {
 					grid[z][y][x] = 0;
 				}

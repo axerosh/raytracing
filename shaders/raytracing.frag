@@ -14,11 +14,20 @@ in vec3 ray_origin;
 out vec4 out_color;
 
 #define AMBIENT_LIGHT vec3(0.05, 0.075, 0.1)
-#define BACKGROUND_COLOR vec4(AMBIENT_LIGHT, 1.0)
-#define LIGHT_RAY_OFFSET 0.001
+#define RECURSIVE_RAY_OFFSET 0.001
 
 #define DIFFUSIVITY 0.6
 #define SPECULARITY 0.5
+#define REFLECTIVITY 0.2
+#define REFRACTIVITY 0.0
+
+#define MAX_REFLECTION_DEPTH 3
+#define MAX_REFRACTION_DEPTH 0
+
+#define MAX_ITERATIONS ((1 << (min(MAX_REFLECTION_DEPTH, MAX_REFRACTION_DEPTH)) + 1) - 1 \
+	+ abs(MAX_REFLECTION_DEPTH - MAX_REFRACTION_DEPTH) * (1 << min(MAX_REFLECTION_DEPTH, MAX_REFRACTION_DEPTH)))
+// = 2^(min_d+1) - 1 + (max_d - min_d) * 2^(min_d)
+// = 2^0 + 2^1 + ... + 2^min_d + (max_d - min_d) * 2^min_d
 
 struct PointLight { vec3 pos; vec3 intensity; };
 
@@ -36,42 +45,99 @@ PointLight lights[LIGHT_COUNT] = {
 	           0.5 * LIGHT_INTENCITY * vec3(0.75, 1.0, 0.75))
 };
 
+struct RaytraceIteration {
+	Ray ray;
+	int recursion_depth;
+	int refl_i; // Index of reflection ray
+	int refr_i; // Index of refraction ray
+	bool has_hit;
+	RaymarchVoxelHit hit;
+	vec3 color;
+};
+
+RaytraceIteration newIteration(Ray ray, int recursion_depth) {
+	RaymarchVoxelHit dummy_hit;
+	return RaytraceIteration(ray, recursion_depth, -1, -1, false, dummy_hit, vec3(0.0));
+}
+
 void main()
 {
 	vec3 ray_dir = normalize(ray_origin - view_pos);
-	Ray r = Ray(ray_origin, ray_dir, vec3(1.0) / ray_dir);
+	Ray primary_ray = Ray(ray_origin, ray_dir, vec3(1.0) / ray_dir);
 
-	RaymarchVoxelHit hit;
-	if (raymarchVoxels(r, hit)) {
+	// Binary tree of raytracing iterations
+	RaytraceIteration r[MAX_ITERATIONS];
+	Ray dummy_ray = Ray(vec3(0.0), vec3(0.0), vec3(0.0));
+	for (int i = 0; i < MAX_ITERATIONS; ++i) r[i].ray = dummy_ray; // To avoid warning C7050
+	r[0] = newIteration(primary_ray, 0);
+	int i = 0;
+	int last_i = 0;
 
-		vec3 diffuse_light = vec3(0.0);
-		vec3 specular_light = vec3(0.0);
-
-		for (int i = 0; i < LIGHT_COUNT; ++i) {
-			RaymarchVoxelHit occluderHit;
-			vec3 light_offset = lights[i].pos - hit.world_pos;
-			vec3 to_light = normalize(light_offset);
-			Ray light_r = Ray(hit.world_pos + LIGHT_RAY_OFFSET * hit.normal, to_light, vec3(1.0) / to_light);
-			if (!raymarchVoxels(light_r, occluderHit, length(light_offset))) {
-
-				// Brightness
-				vec3 brightness = lights[i].intensity / lengthSqrd(light_offset);
-
-				// Diffuse
-				diffuse_light += max(vec3(0.0), brightness * dot(hit.normal, to_light));
-
-				// Specular
-				float specular = dot(reflect(to_light, hit.normal), ray_dir);
-				if (specular > 0.0)
-					specular = 1.0 * pow(specular, 150.0);
-				specular_light += max(vec3(0.0), brightness * specular);
+	// Cast recursive rays
+	for ( ; i <= last_i; ++i) {
+		if (raymarchVoxels(r[i].ray, r[i].hit)) {
+			r[i].has_hit = true;
+			vec3 offset_pos = r[i].hit.world_pos + RECURSIVE_RAY_OFFSET * r[i].hit.normal;
+			// Reflection
+			if (REFLECTIVITY > 0.0 && r[i].recursion_depth < MAX_REFLECTION_DEPTH) {
+				vec3 refl_dir = reflect(r[i].ray.dir, r[i].hit.normal);
+				Ray reflection_ray = Ray(offset_pos, refl_dir, vec3(1.0) / refl_dir);
+				++last_i;
+				r[last_i] = newIteration(reflection_ray, r[i].recursion_depth + 1);
+				r[i].refl_i = last_i;
+			}
+			// Refraction
+			if (REFRACTIVITY > 0.0 && r[i].recursion_depth < MAX_REFRACTION_DEPTH) {
+				// TODO
 			}
 		}
+	}
 
-		vec3 light = AMBIENT_LIGHT + DIFFUSIVITY *  diffuse_light + SPECULARITY * specular_light;
-		out_color = vec4(light /* * vec3(hit.voxel_value.x) */, 1.0);
+	// Trace back colors from rays
+	for ( ; i >= 0; --i) {
+		if (r[i].has_hit) {
+			vec3 offset_pos = r[i].hit.world_pos + RECURSIVE_RAY_OFFSET * r[i].hit.normal;
+
+			// Lighting
+			vec3 diffuse_light = vec3(0.0);
+			vec3 specular_light = vec3(0.0);
+
+			for (int light_i = 0; light_i < LIGHT_COUNT; ++light_i) {
+
+				vec3 light_offset = lights[light_i].pos - r[i].hit.world_pos;
+				vec3 to_light = normalize(light_offset);
+				Ray shadow_ray = Ray(offset_pos, to_light, vec3(1.0) / to_light);
+
+				RaymarchVoxelHit shadow_hit;
+				if (!raymarchVoxels(shadow_ray, shadow_hit, length(light_offset))) {
+
+					// Brightness
+					vec3 brightness = lights[light_i].intensity / lengthSqrd(light_offset);
+
+					// Diffuse
+					diffuse_light += max(vec3(0.0), brightness * dot(r[i].hit.normal, to_light));
+
+					// Specular
+					float specular = dot(reflect(to_light, r[i].hit.normal), primary_ray.dir);
+					if (specular > 0.0)
+						specular = 1.0 * pow(specular, 150.0);
+					specular_light += max(vec3(0.0), brightness * specular);
+				}
+			}
+
+			// From recursion
+			vec3 reflection_color = r[i].refl_i != -1 ? r[r[i].refl_i].color : vec3(0.0);
+			vec3 refraction_color = r[i].refr_i != -1 ? r[r[i].refr_i].color : vec3(0.0);
+
+			r[i].color =
+				vec3(r[i].hit.voxel_value.x)
+				* (DIFFUSIVITY * diffuse_light
+				 + SPECULARITY * specular_light)
+				+ REFLECTIVITY * reflection_color
+				+ REFRACTIVITY * refraction_color;
+		}
 	}
-	else {
-		out_color = BACKGROUND_COLOR;
-	}
+
+	// Final color
+	out_color = vec4(AMBIENT_LIGHT + r[0].color, 1.0);
 }

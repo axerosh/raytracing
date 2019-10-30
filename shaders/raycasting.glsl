@@ -122,7 +122,7 @@ bool raymarchVoxels(const Ray r, out RaymarchVoxelHit hit, float max_depth = 1e2
 		while (depth < max_depth && isInAABBi(voxel_coords, voxel_bounds)) {
 
 			// Check voxel hit
-			vec4 voxel_value = texture(voxel_tex, vec3(voxel_coords) / voxel_count);
+			vec4 voxel_value = texture(voxel_tex, (vec3(voxel_coords) + vec3(0.5)) / voxel_count);
 			if (voxel_value.x > 0.0) {
 				vec3 world_pos = r.o + depth * r.dir;
 				hit = RaymarchVoxelHit(voxel_value, voxel_coords, world_pos, depth, normal);
