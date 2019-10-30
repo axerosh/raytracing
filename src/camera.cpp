@@ -9,7 +9,7 @@
 //----------------------Constants----------------------------------------------
 
 #define ROTATE_RATE 0.01
-#define ZOOM_RATE   0.03
+#define ZOOM_RATE   0.005 * VOXEL_WIDTH * VOXEL_COUNT
 #define MAX_Y       0.4 * M_PI
 #define MAX_ZOOM    0.01
 #define VIEW_OFFSET 3.0
