@@ -4,7 +4,7 @@
 #include "gl-import.hpp"
 
 // Must be power of 2
-#define VOXEL_COUNT 8
+#define VOXEL_COUNT 16
 
 #define VOXEL_WIDTH 1.0
 
