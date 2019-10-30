@@ -5,6 +5,9 @@
 - The AABB used for the Ray-AABB distance calculations had at first the exact dimensions as the voxel space but this resulted random misses resulting in a spotty circular noise instead of solid surfaces on the outer layers of the voxel space. Solution: skin offset inwards making the AABB slightly smaller than the voxel space.
 - Incorrectly increased the depth with the next depth instead of setting it to next depth, resulting in exponential increase of calculated depth inside voxel space, rather than linear.
 
+### Recursive ray tracing
+- GLSL does not support recursive function calls. Instead, branching recursive ray tracing had to be split into two for loops, casting rays and reading their color values respectively, using a common binary tree/stack for ray casting iterations.
+
 ### 3D textures
 - Apparently need to be square and with side lengths being powers of 2 greater than or equal to 4. Otherwise, very weird artifacts emerge.
 
@@ -14,6 +17,9 @@
 - https://www.reddit.com/r/opengl/comments/8ntzz5/fast_glsl_ray_box_intersection/dzyqwgr
 - https://github.com/stackgl/ray-aabb-intersection
 
-### Ray casting in grid
+### Ray casting/marching in grid
 - https://theshoemaker.de/2016/02/ray-casting-in-2d-grids/
 - http://www.cse.yorku.ca/~amana/research/grid.pdf
+
+### Outline for recursive ray tracing in GLSL
+- https://stackoverflow.com/questions/42876586/reflection-and-refraction-impossible-without-recursive-ray-tracing
