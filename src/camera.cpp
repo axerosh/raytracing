@@ -9,7 +9,7 @@
 //----------------------Constants----------------------------------------------
 
 #define ROTATE_RATE 0.01
-#define ZOOM_RATE   0.005 * VOXEL_WIDTH * VOXEL_COUNT
+#define ZOOM_RATE   0.25 * VOXEL_WIDTH * VOXEL_COUNT
 #define MAX_Y       0.4 * M_PI
 #define MAX_ZOOM    0.01
 #define VIEW_OFFSET 3.0
@@ -36,13 +36,13 @@ void Camera::updateCameraMatrix() {
 	glUniform3fv(uniformLoc(shader, "view_pos"), 1, (GLfloat *)&view_pos);
 }
 
-void Camera::update() {
+void Camera::update(float delta_t) {
 	if (glutKeyIsDown('z')) {
-		zoom -= ZOOM_RATE;
+		zoom -= ZOOM_RATE * delta_t;
 		if (zoom < MAX_ZOOM) zoom = MAX_ZOOM;
 		updateCameraMatrix();
 	} else if (glutKeyIsDown('x')) {
-		zoom += ZOOM_RATE;
+		zoom += ZOOM_RATE * delta_t;
 		updateCameraMatrix();
 	}
 }

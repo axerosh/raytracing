@@ -11,7 +11,7 @@ public:
 	Camera() : Camera(0) {};
 
 	void updateCameraMatrix();
-	void update();
+	void update(float delta_t);
 	void mouseClicked(int button, int state, int mx, int my);
 	void mouseDragged(int mx, int my);
 

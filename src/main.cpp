@@ -37,11 +37,20 @@ Model* square_model;
 GLuint shader = 0;
 Camera camera;
 
+int last_time_ms = 0;
 
 //----------------------Implementation-----------------------------------------
 
+void update(float delta_t) {
+	camera.update(delta_t);
+}
+
 void onTimer(int value)
 {
+	int time_ms = glutGet(GLUT_ELAPSED_TIME);
+	float delta_t = 0.001 * (time_ms - last_time_ms);
+	last_time_ms = time_ms;
+	update(delta_t);
 	glutPostRedisplay();
 	glutTimerFunc(5, &onTimer, value);
 }
@@ -80,7 +89,6 @@ void init(void)
 void display()
 {
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-	camera.update();
 	DrawModel(square_model, shader, "in_pos", NULL, NULL);
 	glutSwapBuffers();
 }
