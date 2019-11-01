@@ -10,7 +10,7 @@
 
 #define ROTATE_RATE 0.01
 #define ZOOM_RATE   0.25 * VOXEL_WIDTH * VOXEL_COUNT
-#define MAX_Y       0.4 * M_PI
+#define MAX_Y       0.499 * M_PI
 #define MAX_ZOOM    0.01
 #define VIEW_OFFSET 3.0
 #define VIEW_TARGET vec3(0.5 * VOXEL_COUNT * VOXEL_WIDTH)
