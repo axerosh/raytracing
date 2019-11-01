@@ -6,6 +6,8 @@
 
 #define VOXEL_WORLD_SKIN vec3(0.0001)
 
+#define REFRACTION_INDEX_VOID 1.0
+#define REFRACTION_INDEX_BLOCK 1.1
 
 // Ray with origin o, direction dir and inverse (1/dir) dir_inv
 struct Ray { vec3 o; vec3 dir; vec3 dir_inv; };
@@ -17,12 +19,26 @@ struct RaycastAABBHit {
 };
 
 struct RaymarchVoxelHit {
-	vec4  voxel_value;
+	int   voxel_value;
 	ivec3 voxel_coords;
 	vec3  world_pos;
 	float depth;
 	vec3  normal;
+	float refr_index_ratio;
 };
+
+float getRefractionIndex(int voxel_value) {
+	if (voxel_value == 0) {
+		return REFRACTION_INDEX_VOID;
+	}
+	else {
+		return REFRACTION_INDEX_BLOCK;
+	}
+}
+
+int getVoxelValue(vec3 voxel_coords) {
+	return int(round(255 * texture(voxel_tex, voxel_coords / voxel_count).x));
+}
 
 /**
  * Sets information about the first side of the specified AABB, hit by the
@@ -75,12 +91,12 @@ bool raycastAABB(const Ray r, const AABB aabb, out RaycastAABBHit hit)
 
 /**
  * Sets information about the first set voxel, hit by the specified ray,
- * to the hit parameter.
+ * to the hit parameter. Voxels with value void_value are passed through.
  * Stops before the specified maximum depth.
  *
  * Returns true if there was a hit or false otherwise.
  */
-bool raymarchVoxels(const Ray r, out RaymarchVoxelHit hit, float max_depth = 1e20)
+bool raymarchVoxels(const Ray r, out RaymarchVoxelHit hit, const int void_value, float max_depth)
 {
 // References:
 //	https://theshoemaker.de/2016/02/ray-casting-in-2d-grids/
@@ -88,9 +104,9 @@ bool raymarchVoxels(const Ray r, out RaymarchVoxelHit hit, float max_depth = 1e2
 
 	ivec3 voxel_coords; // Voxel coordinates
 	ivec3 voxel_step;   // Change in voxel coordinates, per axis, if traversing along said axis
-	vec3 normal;        // Surface normal
+	vec3  normal;       // Surface normal
 
-	float depth = 0;    // Traversed distance along the ray, in voxel space
+	float depth;        // Traversed distance along the ray
 	vec3  next_depth;   // New depth, per axis, if traversing along said axis
 	vec3  depth_step;   // Change in depth, per axis, if traversing along said axis
 
@@ -122,10 +138,11 @@ bool raymarchVoxels(const Ray r, out RaymarchVoxelHit hit, float max_depth = 1e2
 		while (depth < max_depth && isInAABBi(voxel_coords, voxel_bounds)) {
 
 			// Check voxel hit
-			vec4 voxel_value = texture(voxel_tex, (vec3(voxel_coords) + vec3(0.5)) / voxel_count);
-			if (voxel_value.x > 0.0) {
+			int voxel_value = getVoxelValue(vec3(voxel_coords) + vec3(0.5));
+			if (voxel_value != void_value) {
 				vec3 world_pos = r.o + depth * r.dir;
-				hit = RaymarchVoxelHit(voxel_value, voxel_coords, world_pos, depth, normal);
+				float refr_index_ratio = getRefractionIndex(void_value) / getRefractionIndex(voxel_value);
+				hit = RaymarchVoxelHit(voxel_value, voxel_coords, world_pos, depth, normal, refr_index_ratio);
 				return true;
 			}
 
@@ -161,6 +178,10 @@ bool raymarchVoxels(const Ray r, out RaymarchVoxelHit hit, float max_depth = 1e2
 
 	// No hit
 	return false;
+}
+
+bool raymarchVoxels(const Ray r, out RaymarchVoxelHit hit, const int void_value) {
+	return raymarchVoxels(r, hit, void_value, 1e20);
 }
 
 #endif // RAYCASTING_GLSL

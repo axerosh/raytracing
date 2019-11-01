@@ -8,6 +8,9 @@
 ### Recursive ray tracing
 - GLSL does not support recursive function calls. Instead, branching recursive ray tracing had to be split into two for loops, casting rays and reading their color values respectively, using a common binary tree/stack for ray casting iterations.
 
+### Refractions
+- All rays (except primary) need to pass through the medium they started in, so the hit criterium must be variable.
+
 ### 3D textures
 - Apparently need to be square and with side lengths being powers of 2 greater than or equal to 4. Otherwise, very weird artifacts emerge.
 
