@@ -108,26 +108,28 @@ void main()
 			vec3 diffuse_light = vec3(0.0);
 			vec3 specular_light = vec3(0.0);
 
-			for (int light_i = 0; light_i < LIGHT_COUNT; ++light_i) {
+			if (DIFFUSIVITY > 0.0 || SPECULARITY > 0.0) {
+				for (int light_i = 0; light_i < LIGHT_COUNT; ++light_i) {
 
-				vec3 light_offset = lights[light_i].pos - r[i].hit.world_pos;
-				vec3 to_light = normalize(light_offset);
-				Ray shadow_ray = Ray(offset_pos, to_light, vec3(1.0) / to_light);
+					vec3 light_offset = lights[light_i].pos - r[i].hit.world_pos;
+					vec3 to_light = normalize(light_offset);
+					Ray shadow_ray = Ray(offset_pos, to_light, vec3(1.0) / to_light);
 
-				RaymarchVoxelHit shadow_hit;
-				if (!raymarchVoxels(shadow_ray, shadow_hit, r[i].void_value, length(light_offset))) {
+					RaymarchVoxelHit shadow_hit;
+					if (!raymarchVoxels(shadow_ray, shadow_hit, r[i].void_value, length(light_offset))) {
 
-					// Brightness
-					vec3 brightness = lights[light_i].intensity / lengthSqrd(light_offset);
+						// Brightness
+						vec3 brightness = lights[light_i].intensity / lengthSqrd(light_offset);
 
-					// Diffuse
-					diffuse_light += max(vec3(0.0), brightness * dot(r[i].hit.normal, to_light));
+						// Diffuse
+						diffuse_light += max(vec3(0.0), brightness * dot(r[i].hit.normal, to_light));
 
-					// Specular
-					float specular = dot(reflect(to_light, r[i].hit.normal), primary_ray.dir);
-					if (specular > 0.0)
-						specular = 1.0 * pow(specular, 150.0);
-					specular_light += max(vec3(0.0), brightness * specular);
+						// Specular
+						float specular = dot(reflect(to_light, r[i].hit.normal), primary_ray.dir);
+						if (specular > 0.0)
+							specular = 1.0 * pow(specular, 150.0);
+						specular_light += max(vec3(0.0), brightness * specular);
+					}
 				}
 			}
 
