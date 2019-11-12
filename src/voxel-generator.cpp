@@ -1,5 +1,6 @@
 #include "voxel-generator.hpp"
 
+#include "materials.hpp"
 #include "shader-utils.hpp"
 
 #include <iomanip>
@@ -30,21 +31,22 @@ void printVoxels(GLubyte grid[VOXEL_COUNT][VOXEL_COUNT][VOXEL_COUNT]) {
 	std::cout << "}" << std::endl;
 }
 
-bool isCenter(int x) {
-	return x >= int(0.5 * VOXEL_COUNT - 0.5) && x <= VOXEL_COUNT / 2;
+bool isWithinRatio(int x, float r) {
+	return x >= int(0.5 * VOXEL_COUNT - 0.5 * r * VOXEL_COUNT)
+	    && x <= int(0.5 * VOXEL_COUNT + 0.5 * r * VOXEL_COUNT - 0.5);
 }
 
-bool isCenter(int x, int y) {
-	return isCenter(x) && isCenter(y);
+bool isWithinRatio(int x, int y, float r) {
+	return isWithinRatio(x, r) && isWithinRatio(y, r);
 }
 
-bool isCenter(int x, int y, int z) {
-	return isCenter(x) && isCenter(y) && isCenter(z);
+bool isWithinRatio(int x, int y, int z, float r) {
+	return isWithinRatio(x, r) && isWithinRatio(y, r) && isWithinRatio(z, r);
 }
 
 bool isWall(int x, int y, int z) {
 	return x == 0 || y == 0 || z == 0 ||
-		x == VOXEL_COUNT - 1 || y == VOXEL_COUNT - 1 /* || z == VOXEL_COUNT - 1 */;
+		x == VOXEL_COUNT - 1 || y == VOXEL_COUNT - 1 || z == VOXEL_COUNT - 1;
 }
 
 void initVoxels(GLuint shader) {
@@ -53,14 +55,31 @@ void initVoxels(GLuint shader) {
 
 	// static const float MAX_SUM_INV = 1.0 / (3 * (VOXEL_COUNT - 1));
 
+	float center_glass = 0.125;
+	float wall_hole    = 0.25;
+	float wall_glass   = 0.875;
+
 	for (int x = 0; x < VOXEL_COUNT; ++x) {
 		for (int y = 0; y < VOXEL_COUNT; ++y) {
 			for (int z = 0; z < VOXEL_COUNT; ++z) {
-				if (isCenter(x, y, z) ||
-				   (isWall(x, y, z) && !(isCenter(x, y) || isCenter(x, z) || isCenter(y, z)))) {
-					grid[z][y][x] = 255; //1 + 254 * (x + y + z) * MAX_SUM_INV;
+				if (isWithinRatio(x, y, z, center_glass)) {
+					grid[z][y][x] = (GLubyte)Material::GLASS;
+				} else if (isWithinRatio(x, y, wall_hole)
+				        || isWithinRatio(x, z, wall_hole)
+				        || isWithinRatio(y, z, wall_hole)) {
+					grid[z][y][x] = (GLubyte)Material::VOID;
+				} else if (isWall(x, y, z)) {
+					if (!isWithinRatio(x, y, wall_glass)
+					 && !isWithinRatio(x, z, wall_glass)
+					 && !isWithinRatio(y, z, wall_glass)) {
+						grid[z][y][x] = (GLubyte)Material::SOLID;
+					} else if (z == VOXEL_COUNT - 1) {
+						grid[z][y][x] = (GLubyte)Material::VOID;
+					} else {
+						grid[z][y][x] = (GLubyte)Material::GLASS;
+					}
 				} else {
-					grid[z][y][x] = 0;
+					grid[z][y][x] = (GLubyte)Material::VOID;
 				}
 			}
 		}

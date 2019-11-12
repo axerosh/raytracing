@@ -7,6 +7,7 @@ uniform float     voxel_density;
 uniform float     voxel_width;
 uniform int       voxel_count;
 
+#include materials.glsl
 #include raycasting.glsl
 
 in vec3 ray_origin;
@@ -16,13 +17,8 @@ out vec4 out_color;
 #define AMBIENT_LIGHT vec3(0.05, 0.075, 0.1)
 #define RECURSIVE_RAY_OFFSET 0.001
 
-#define DIFFUSIVITY 0.6
-#define SPECULARITY 0.5
-#define REFLECTIVITY 0.2
-#define REFRACTIVITY 0.3
-
-#define MAX_REFLECTION_DEPTH 3
-#define MAX_REFRACTION_DEPTH 2
+#define MAX_REFLECTION_DEPTH 4
+#define MAX_REFRACTION_DEPTH 4
 
 #define MAX_ITERATIONS ((1 << (min(MAX_REFLECTION_DEPTH, MAX_REFRACTION_DEPTH)) + 1) - 1 \
 	+ abs(MAX_REFLECTION_DEPTH - MAX_REFRACTION_DEPTH) * (1 << min(MAX_REFLECTION_DEPTH, MAX_REFRACTION_DEPTH)))
@@ -78,8 +74,9 @@ void main()
 	for ( ; i <= last_i; ++i) {
 		if (raymarchVoxels(r[i].ray, r[i].hit, r[i].void_value)) {
 			r[i].has_hit = true;
+			Material material = materials[r[i].hit.draw_value];
 			// Reflection
-			if (REFLECTIVITY > 0.0 && r[i].recursion_depth < MAX_REFLECTION_DEPTH) {
+			if (material.reflectivity > 0.0 && r[i].recursion_depth < MAX_REFLECTION_DEPTH) {
 				vec3 refl_dir = normalize(reflect(r[i].ray.dir, r[i].hit.normal));
 				vec3 offset_pos = r[i].hit.world_pos + RECURSIVE_RAY_OFFSET * r[i].hit.normal;
 				Ray reflection_ray = Ray(offset_pos, refl_dir, vec3(1.0) / refl_dir);
@@ -88,12 +85,12 @@ void main()
 				r[i].refl_i = last_i;
 			}
 			// Refraction
-			if (REFRACTIVITY > 0.0 && r[i].recursion_depth < MAX_REFRACTION_DEPTH) {
+			if (material.refractivity > 0.0 && r[i].recursion_depth < MAX_REFRACTION_DEPTH) {
 				vec3 refr_dir = normalize(refract(r[i].ray.dir, r[i].hit.normal, r[i].hit.refr_index_ratio));
 				vec3 offset_pos = r[i].hit.world_pos - RECURSIVE_RAY_OFFSET * r[i].hit.normal;
 				Ray refraction_ray = Ray(offset_pos, refr_dir, vec3(1.0) / refr_dir);
 				++last_i;
-				r[last_i] = newIteration(refraction_ray, r[i].recursion_depth + 1, r[i].hit.voxel_value);
+				r[last_i] = newIteration(refraction_ray, r[i].recursion_depth + 1, r[i].hit.hit_value);
 				r[i].refr_i = last_i;
 			}
 		}
@@ -103,12 +100,13 @@ void main()
 	for ( ; i >= 0; --i) {
 		if (r[i].has_hit) {
 			vec3 offset_pos = r[i].hit.world_pos + RECURSIVE_RAY_OFFSET * r[i].hit.normal;
+			Material material = materials[r[i].hit.draw_value];
 
 			// Lighting
 			vec3 diffuse_light = vec3(0.0);
 			vec3 specular_light = vec3(0.0);
 
-			if (DIFFUSIVITY > 0.0 || SPECULARITY > 0.0) {
+			if (material.diffusivity > 0.0 || material.specularity > 0.0) {
 				for (int light_i = 0; light_i < LIGHT_COUNT; ++light_i) {
 
 					vec3 light_offset = lights[light_i].pos - r[i].hit.world_pos;
@@ -138,11 +136,11 @@ void main()
 			vec3 refraction_color = r[i].refr_i != -1 ? r[r[i].refr_i].color : vec3(0.0);
 
 			r[i].color =
-				vec3(r[i].hit.voxel_value / 255)
-				* (DIFFUSIVITY * diffuse_light
-				 + SPECULARITY * specular_light)
-				+ REFLECTIVITY * reflection_color
-				+ REFRACTIVITY * refraction_color;
+				material.color
+				* (material.diffusivity * diffuse_light
+				 + material.specularity * specular_light)
+				+ material.reflectivity * reflection_color
+				+ material.refractivity * refraction_color;
 		}
 	}
 

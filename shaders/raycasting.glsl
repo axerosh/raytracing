@@ -2,12 +2,10 @@
 #define RAYCASTING_GLSL
 
 #include aabb.glsl
+#include materials.glsl
 #include utils.glsl
 
 #define VOXEL_WORLD_SKIN vec3(0.0001)
-
-#define REFRACTION_INDEX_VOID 1.0
-#define REFRACTION_INDEX_BLOCK 1.1
 
 // Ray with origin o, direction dir and inverse (1/dir) dir_inv
 struct Ray { vec3 o; vec3 dir; vec3 dir_inv; };
@@ -19,22 +17,14 @@ struct RaycastAABBHit {
 };
 
 struct RaymarchVoxelHit {
-	int   voxel_value;
+	int   hit_value;
+	int   draw_value;
 	ivec3 voxel_coords;
 	vec3  world_pos;
 	float depth;
 	vec3  normal;
 	float refr_index_ratio;
 };
-
-float getRefractionIndex(int voxel_value) {
-	if (voxel_value == 0) {
-		return REFRACTION_INDEX_VOID;
-	}
-	else {
-		return REFRACTION_INDEX_BLOCK;
-	}
-}
 
 int getVoxelValue(vec3 voxel_coords) {
 	return int(round(255 * texture(voxel_tex, voxel_coords / voxel_count).x));
@@ -138,11 +128,16 @@ bool raymarchVoxels(const Ray r, out RaymarchVoxelHit hit, const int void_value,
 		while (depth < max_depth && isInAABBi(voxel_coords, voxel_bounds)) {
 
 			// Check voxel hit
-			int voxel_value = getVoxelValue(vec3(voxel_coords) + vec3(0.5));
-			if (voxel_value != void_value) {
+			int hit_value = getVoxelValue(vec3(voxel_coords) + vec3(0.5));
+			if (hit_value != void_value) {
+				int draw_value = hit_value;
+				if (hit_value == STD_VOID_INDEX) {
+					// If exiting into actual void, draw previous material
+					draw_value = getVoxelValue(vec3(voxel_coords) + normal + vec3(0.5));
+				}
 				vec3 world_pos = r.o + depth * r.dir;
-				float refr_index_ratio = getRefractionIndex(void_value) / getRefractionIndex(voxel_value);
-				hit = RaymarchVoxelHit(voxel_value, voxel_coords, world_pos, depth, normal, refr_index_ratio);
+				float refr_index_ratio = materials[void_value].refraction_index / materials[hit_value].refraction_index;
+				hit = RaymarchVoxelHit(hit_value, draw_value, voxel_coords, world_pos, depth, normal, refr_index_ratio);
 				return true;
 			}
 
