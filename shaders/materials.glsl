@@ -13,8 +13,6 @@ struct Material {
 	float refraction_index;
 };
 
-// TODO: Draw current material if entering air
-
 Material materials[MATERIAL_COUNT] = {
 	Material(vec3(0.0), 0.0, 0.0, 0.0, 0.0, 1.0), // Void
 	Material(vec3(1.0), 0.1, 0.7, 0.3, 1.0, 1.5), // Glass
