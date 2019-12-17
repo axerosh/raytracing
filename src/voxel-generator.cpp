@@ -63,7 +63,7 @@ void initVoxels(GLuint shader) {
 		for (int y = 0; y < VOXEL_COUNT; ++y) {
 			for (int z = 0; z < VOXEL_COUNT; ++z) {
 				if (isWithinRatio(x, y, z, center_glass)) {
-					grid[z][y][x] = (GLubyte)Material::GLASS;
+					grid[z][y][x] = (GLubyte)Material::SEMI_SOLID;
 				} else if (isWithinRatio(x, y, wall_hole)
 				        || isWithinRatio(x, z, wall_hole)
 				        || isWithinRatio(y, z, wall_hole)) {

@@ -72,7 +72,7 @@ void main()
 
 	// Cast recursive rays
 	for ( ; i <= last_i; ++i) {
-		if (raymarchVoxels(r[i].ray, r[i].hit, r[i].void_value)) {
+		if (raymarchVoxelsDifferent(r[i].ray, r[i].hit, r[i].void_value)) {
 			r[i].has_hit = true;
 			Material material = materials[r[i].hit.draw_value];
 			// Reflection
@@ -114,10 +114,10 @@ void main()
 					Ray shadow_ray = Ray(offset_pos, to_light, vec3(1.0) / to_light);
 
 					RaymarchVoxelHit shadow_hit;
-					if (!raymarchVoxels(shadow_ray, shadow_hit, r[i].void_value, length(light_offset))) {
+					if (!raymarchVoxelsOpaque(shadow_ray, shadow_hit, r[i].void_value, length(light_offset))) {
 
 						// Brightness
-						vec3 brightness = lights[light_i].intensity / lengthSqrd(light_offset);
+						vec3 brightness = max(vec3(0.0), (lights[light_i].intensity / lengthSqrd(light_offset)) * shadow_hit.transparency);
 
 						// Diffuse
 						diffuse_light += max(vec3(0.0), brightness * dot(r[i].hit.normal, to_light));
