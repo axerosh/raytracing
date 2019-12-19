@@ -80,7 +80,7 @@ void init(void)
 		square_indices, 4, 6);
 	printError("init model");
 
-	camera = Camera(shader);
+	camera = Camera(0.2*M_PI, -0.125*M_PI, shader);
 	printError("init camera");
 
 	glutTimerFunc(5, &onTimer, 0);

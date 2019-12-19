@@ -18,8 +18,8 @@
 
 //----------------------Implementation-----------------------------------------
 
-Camera::Camera(GLuint shader)
-	: shader{shader}, x{0.0}, y{0.0}, zoom{2.5 * VOXEL_COUNT}, mx_prev{0}, my_prev{0}
+Camera::Camera(float x, float y, GLuint shader)
+	: shader{shader}, x{x}, y{y}, zoom{2.5 * VOXEL_COUNT}, mx_prev{0}, my_prev{0}
 {
 	updateCameraMatrix();
 }

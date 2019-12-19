@@ -7,8 +7,8 @@
 class Camera {
 
 public:
-	Camera(GLuint shader);
-	Camera() : Camera(0) {};
+	Camera(float x, float y, GLuint shader);
+	Camera() : Camera(0.0, 0.0, 0) {};
 
 	void updateCameraMatrix();
 	void update(float delta_t);
