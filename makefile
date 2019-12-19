@@ -14,7 +14,7 @@ defines = -DGL_GLEXT_PROTOTYPES
 sources = $(src_files) $(lib_files) $(glut_files)
 libraries = -lXt -lX11 -lGL -lm
 
-.PHONY: build_and_run build force-build run clean
+.PHONY: build_and_run build force-build run clean high-res low-res
 
 build_and_run: build run
 
@@ -29,6 +29,12 @@ run:
 
 clean:
 	rm -r $(out_dir)
+
+high-res:
+	xrandr --output eDP-1-1 --mode 2560x1440
+
+low-res:
+	xrandr --output eDP-1-1 --mode 640x360
 
 $(out_dir):
 	mkdir $(out_dir)
