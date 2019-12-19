@@ -37,6 +37,7 @@ Model* square_model;
 GLuint shader = 0;
 Camera camera;
 
+int frame_time_ms = 5;
 int last_time_ms = 0;
 
 //----------------------Implementation-----------------------------------------
@@ -52,7 +53,7 @@ void onTimer(int value)
 	last_time_ms = time_ms;
 	update(delta_t);
 	glutPostRedisplay();
-	glutTimerFunc(5, &onTimer, value);
+	glutTimerFunc(frame_time_ms, &onTimer, value);
 }
 
 void init(void)
@@ -102,7 +103,7 @@ void reshape(GLsizei w, GLsizei h)
 
 void idle()
 {
-	glutPostRedisplay();
+	//glutPostRedisplay();
 }
 
 void mouse(int button, int state, int x, int y) {

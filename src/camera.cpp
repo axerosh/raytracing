@@ -73,5 +73,5 @@ void Camera::mouseDragged(int mx, int my)
 	mx_prev = mx;
 	my_prev = my;
 
-	glutPostRedisplay();
+	//glutPostRedisplay();
 }
